@@ -3,152 +3,90 @@ const filePath = process.platform === "linux" ? "/dev/stdin" : "./input.txt";
 let input = fs.readFileSync(filePath).toString().trim().split("\n");
 
 const [N, M] = input[0].split(" ").map(Number);
-const board = [];
-for (let i = 0; i < N; i++) {
-  board.push(input[1 + i].trim().split(" "));
-}
-
+const board = input.slice(1).map((line) => line.trim().split(" "));
 let answer = Infinity;
 
+// CCTV의 위치와 타입 저장
 const cctvData = [];
-board.forEach((line, i) =>
-  line.forEach((data, j) => {
-    if (data === "0" || data === "6") return;
-    else cctvData.push({ type: data, pos: [i, j] });
+board.forEach((line, x) =>
+  line.forEach((value, y) => {
+    if (value !== "0" && value !== "6") {
+      cctvData.push({ type: parseInt(value, 10), pos: [x, y] });
+    }
   })
 );
-recursion(board, 0);
-console.log(answer);
 
-function toUp(board, x, y) {
-  for (let i = x - 1; i >= 0; i--) {
-    if (board[i][y] !== "6") {
-      board[i][y] = "#";
-    } else {
-      break;
-    }
-  }
-}
+// 방향 벡터 정의 (상, 우, 하, 좌)
+const directions = [
+  [-1, 0], // 상
+  [0, 1], // 우
+  [1, 0], // 하
+  [0, -1], // 좌
+];
 
-function toDown(board, x, y) {
-  for (let i = x + 1; i < N; i++) {
-    if (board[i][y] !== "6") {
-      board[i][y] = "#";
-    } else {
-      break;
-    }
-  }
-}
+// CCTV별 감시 방향 조합
+const cctvDirections = {
+  1: [[0], [1], [2], [3]], // 한 방향
+  2: [
+    [0, 2],
+    [1, 3],
+  ], // 두 방향 (반대)
+  3: [
+    [0, 1],
+    [1, 2],
+    [2, 3],
+    [3, 0],
+  ], // 두 방향 (직각)
+  4: [
+    [0, 1, 2],
+    [1, 2, 3],
+    [2, 3, 0],
+    [3, 0, 1],
+  ], // 세 방향
+  5: [[0, 1, 2, 3]], // 네 방향
+};
 
-function toLeft(board, x, y) {
-  for (let j = y - 1; j >= 0; j--) {
-    if (board[x][j] !== "6") {
-      board[x][j] = "#";
-    } else {
-      break;
-    }
-  }
-}
-
-function toRight(board, x, y) {
-  for (let j = y + 1; j < M; j++) {
-    if (board[x][j] !== "6") {
-      board[x][j] = "#";
-    } else {
-      break;
-    }
-  }
-}
-
-function recursion(board, index) {
-  if (index === cctvData.length) {
-    let temp = 0;
-    for (let i = 0; i < N; i++) {
-      for (let j = 0; j < M; j++) {
-        if (board[i][j] === "0") {
-          temp++;
-        }
+// 감시 처리 함수
+function monitor(board, directions, x, y) {
+  const newBoard = board.map((row) => [...row]);
+  directions.forEach((dir) => {
+    let nx = x;
+    let ny = y;
+    while (true) {
+      nx += dir[0];
+      ny += dir[1];
+      if (nx < 0 || nx >= N || ny < 0 || ny >= M || newBoard[nx][ny] === "6") {
+        break;
+      }
+      if (newBoard[nx][ny] === "0") {
+        newBoard[nx][ny] = "#";
       }
     }
-    answer = Math.min(answer, temp);
+  });
+  return newBoard;
+}
+
+// 재귀 함수
+function dfs(board, index) {
+  if (index === cctvData.length) {
+    const uncovered = board.flat().filter((cell) => cell === "0").length;
+    answer = Math.min(answer, uncovered);
     return;
   }
-  if (cctvData[index].type === "1") {
-    let copyBoard = [...board.map((row) => [...row])];
-    toUp(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    recursion(copyBoard, index + 1);
 
-    copyBoard = [...board.map((row) => [...row])];
-    toRight(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    recursion(copyBoard, index + 1);
-
-    copyBoard = [...board.map((row) => [...row])];
-    toDown(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    recursion(copyBoard, index + 1);
-
-    copyBoard = [...board.map((row) => [...row])];
-    toLeft(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    recursion(copyBoard, index + 1);
-  } else if (cctvData[index].type === "2") {
-    let copyBoard = [...board.map((row) => [...row])];
-    toUp(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    toDown(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    recursion(copyBoard, index + 1);
-
-    copyBoard = [...board.map((row) => [...row])];
-    toLeft(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    toRight(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    recursion(copyBoard, index + 1);
-  } else if (cctvData[index].type === "3") {
-    let copyBoard = [...board.map((row) => [...row])];
-    toUp(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    toRight(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    recursion(copyBoard, index + 1);
-
-    copyBoard = [...board.map((row) => [...row])];
-    toRight(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    toDown(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    recursion(copyBoard, index + 1);
-
-    copyBoard = [...board.map((row) => [...row])];
-    toDown(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    toLeft(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    recursion(copyBoard, index + 1);
-
-    copyBoard = [...board.map((row) => [...row])];
-    toLeft(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    toUp(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    recursion(copyBoard, index + 1);
-  } else if (cctvData[index].type === "4") {
-    let copyBoard = [...board.map((row) => [...row])];
-    toUp(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    toRight(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    toDown(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    recursion(copyBoard, index + 1);
-
-    copyBoard = [...board.map((row) => [...row])];
-    toRight(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    toDown(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    toLeft(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    recursion(copyBoard, index + 1);
-
-    copyBoard = [...board.map((row) => [...row])];
-    toDown(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    toLeft(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    toUp(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    recursion(copyBoard, index + 1);
-
-    copyBoard = [...board.map((row) => [...row])];
-    toLeft(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    toUp(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    toRight(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    recursion(copyBoard, index + 1);
-  } else if (cctvData[index].type === "5") {
-    let copyBoard = [...board.map((row) => [...row])];
-    toUp(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    toRight(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    toDown(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    toLeft(copyBoard, cctvData[index].pos[0], cctvData[index].pos[1]);
-    recursion(copyBoard, index + 1);
-  }
+  const { type, pos } = cctvData[index];
+  const [x, y] = pos;
+  cctvDirections[type].forEach((dirs) => {
+    const monitoredBoard = monitor(
+      board,
+      dirs.map((d) => directions[d]),
+      x,
+      y
+    );
+    dfs(monitoredBoard, index + 1);
+  });
 }
+
+// DFS 시작
+dfs(board, 0);
+console.log(answer);
